@@ -1,0 +1,14 @@
+@ = require(['mho:std']);
+
+var lines = @ObservableVar([]);
+var linesInProgress = @ObservableVar([]);
+
+
+
+//function to get all finished lines from the server
+exports.getLines = -> @observe(lines, linesInProgress, (ls, lip)->ls.concat(lip));
+
+//function to push a observable line-in-progress to the server
+//exports.startLine = line -> linesInProgress.modify(l -> l.concat([line]));
+exports.addLine = line -> lines.modify( ls -> ls.concat([line]));
+exports.lines = lines;
