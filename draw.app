@@ -5,6 +5,10 @@
 	var lines = api.getLines();
 	var currentLine = @ObservableVar(false);
 
+	function getPos(event){
+		return {x: event.x - event.toElement.offsetLeft, y: event.y - event.toElement.offsetTop};
+	}
+
 	var div =  @Canvas('',{width:500, height:500})
 		.. @Id('canvas')
  		.. @Style('{width: 500px; height: 500px;}')
@@ -13,8 +17,9 @@
 			|c|
 			c .. @when('mousedown'){
 				|event|
+					console.log(event);
 				currentLine.modify(x -> {
-					coords: [{x: event.x, y: event.y}],
+					coords: [getPos(event)],
 				});
 			};
 		}
@@ -40,7 +45,7 @@
 				|event|
 				if (currentLine.get()){
 					currentLine.modify(function(line){
-						line.coords.push({x: event.x, y: event.y});
+						line.coords.push(getPos(event));
 						return line;
 					});
 				}
