@@ -23,7 +23,7 @@
 		.. @each(){
 			|lines|
 			console.log("Will draw #{lines.length}")
-			@map(lines, function(line){
+			lines .. @each(function(line){
 				context.beginPath();
 				context.moveTo(line.coords[0].x, line.coords[0].y);
 				line.coords.slice(1) .. @map( (l) -> context.lineTo(l.x, l.y));
