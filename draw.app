@@ -9,30 +9,21 @@
 		return {x: event.x - event.toElement.offsetLeft, y: event.y - event.toElement.offsetTop};
 	}
 
-	var div =  @Canvas('',{width:500, height:500})
+	var canvas =  @Canvas('',{width:500, height:500})
 		.. @Id('canvas')
  		.. @Style('{width: 500px; height: 500px;}')
 		.. @Shadow()
-		.. @Mechanism(){
-			|c|
-			c .. @when('mousedown'){
-				|event|
-					console.log(event);
-				currentLine.modify(x -> {
-					coords: [getPos(event)],
-				});
-			};
-		}
-		
-	@mainContent .. @appendContent(div);
+	
+	@mainContent .. @appendContent(canvas);
 	
 	var context = document.getElementById('canvas').getContext('2d');
 		
 	waitfor{
 		@observe(lines, currentLine, (ls, cl) -> cl ? ls.concat([cl]) : ls )
-		.. @map(){
-			|newLines|
-			@map(newLines, function(line){
+		.. @each(){
+			|lines|
+			console.log("Will draw #{lines.length}")
+			@map(lines, function(line){
 				context.beginPath();
 				context.moveTo(line.coords[0].x, line.coords[0].y);
 				line.coords.slice(1) .. @map( (l) -> context.lineTo(l.x, l.y));
@@ -41,24 +32,32 @@
 			});
 		};
 	} and {
-		document .. @when('mousemove'){
-				|event|
-				if (currentLine.get()){
-					currentLine.modify(function(line){
-						line.coords.push(getPos(event));
-						return line;
-					});
-				}
-			};
-	} and {
-		document .. @when('mouseup'){
-					|event|
+		document .. @when(['mousemove','mouseup','mousedown']){
+			|event|
+			switch (event.type){
+				case('mousedown'):
+					if (event.toElement.id == 'canvas'){
+						currentLine.modify(x -> {
+							coords: [getPos(event)],
+						});
+					};
+					break;
+				case('mousemove'):
 					if (currentLine.get()){
-						api.addLine(currentLine.get());
-						//lines.modify(v -> v.concat([currentLine.get()]));
-						currentLine.modify(x -> false);		
+						currentLine.modify(function(line){
+							line.coords.push(getPos(event));
+							return line;
+						});
 					}
-	
-				};
+					break;
+				case('mouseup'):
+					if (currentLine.get()){
+						console.log('stop');
+						api.addLine(currentLine.get());
+						currentLine.modify( -> false);		
+					}
+
+			}
+		}
 	}
 }
