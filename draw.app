@@ -26,7 +26,7 @@
 			lines .. @each(function(line){
 				context.beginPath();
 				context.moveTo(line.coords[0].x, line.coords[0].y);
-				line.coords.slice(1) .. @map( (l) -> context.lineTo(l.x, l.y));
+				line.coords.slice(1) .. @each( (l) -> context.lineTo(l.x, l.y));
 				context.stroke();
 				context.closePath();
 			});
