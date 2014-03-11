@@ -1,14 +1,111 @@
 @ = require(['mho:std']);
 
-var lines = @ObservableVar([]);
-var linesInProgress = @ObservableVar([]);
+/*
+ * sample:
+ *
+ * drawings = {
+ * 		drawin-1-id: {
+ * 			segments: [
+ * 					{coord:[12, 23], sid:3},
+ * 					{x:12 y:23 sid:3},
+ * 					{x:12 y:23 sid:3},
+ * 				],
+ * 		},
+ * 		... 
+ * 		drawin-x-id: {
+ * 			segments: [
+ * 					{x:12 y:23 sid:3},
+ * 					{x:12 y:23 sid:3},
+ * 					{x:12 y:23 sid:3},
+ * 				]
+ * 		},
+ * 	}
+ */
+var drawings = {};
 
+/*
+ * Create a stream which outputs newly added segments to a drawing
+ */
+function changeStream(drawing){
+	var clientId = drawing.clientCount;
+	var idx = drawing.segments.length - 1;
+	return @Stream(function(reciever){
+		drawing.newSegmentEmitter.when(){
+			|client|
+			idx++;
+			if (client !== clientId){
+				console.log("sent segment \##{idx} to client ##{clientId}");
+				reciever(drawing.segments[idx]);
+			}
+		}
+	});
+}
 
+/*
+ * Create a function through which a client can submit new segments.
+ */
+function submitSegmentFunc(drawing){
+	var clientId = drawing.clientCount;
+	return function(segment){
+		if (!segment.sid){
+			segment.sid = ++drawing.strokeCount;
+		}
+		console.log("recieved segment \##{drawing.segments.length} of stroke ##{segment.sid} from client ##{clientId}");
+		drawing.segments.push(segment);
+		drawing.newSegmentEmitter.emit(clientId);
+		return segment.sid;
+	}
+}
 
-//function to get all finished lines from the server
-exports.getLines = -> @observe(lines, linesInProgress, (ls, lip)->ls.concat(lip));
+/*
+ * Get a drawing.
+ * Either:
+ * - pass an id to fetch an existing drawing.
+ * - call without arguments to create a new one.
+ */
+function getDrawing(drawingId){
+  var log = '';
+	if (!drawingId){
+		//create a new drawing
+		while (drawings[drawingId] !== undefined){
+			drawingId = generateDrawingId();
+		}
+		log += "creating new drawing: #{drawingId}";
+		drawings[drawingId] = {
+			segments:[], 
+			newSegmentEmitter:@Emitter(),
+			clientCount: 0,
+			strokeCount: 0,
+		};
+	} else if (!drawings[drawingId]) {
+		throw 'Unknown drawing id';
+	} else {
+		log += "fetching drawing: #{drawingId}";
+	}
+	drawings[drawingId].clientCount++;
 
-//function to push a observable line-in-progress to the server
-//exports.startLine = line -> linesInProgress.modify(l -> l.concat([line]));
-exports.addLine = line -> lines.modify( ls -> ls.concat([line]));
-exports.lines = lines;
+	log += "; for client \##{drawings[drawingId].clientCount}";
+
+	var drawing = drawings[drawingId];
+	drawing.changes = drawing .. changeStream;
+	drawing.submitSegment = drawing .. submitSegmentFunc;
+
+	console.log(log);
+	
+	return [
+			drawingId, 
+			drawing,
+	];
+}
+exports.getDrawing = getDrawing;
+
+var words = [
+	['very', 'quite', 'disturbingly', 'satisfyingly', 'distinguishably'],
+	['large', 'small', 'digestable', 'weird', 'wrong'],
+	['football', 'fish', 'plate', 'horse', 'sandwich', 'ashtray'],
+];
+function generateDrawingId(){
+		var rand = a -> a[Math.floor(Math.random() * a.length)];
+		return (words .. @map(rand)).join('-');
+}
+
