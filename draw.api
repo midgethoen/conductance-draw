@@ -30,11 +30,10 @@ function changeStream(drawing){
 	var clientId = drawing.clientCount;
 	var idx = drawing.segments.length - 1;
 	return @Stream(function(reciever){
-		drawing.newSegmentEmitter.when(){
+		drawing.newSegmentEmitter.when({queue: true}){
 			|client|
 			idx++;
 			if (client !== clientId){
-				console.log("sent segment \##{idx} to client ##{clientId}");
 				reciever(drawing.segments[idx]);
 			}
 		}
@@ -50,7 +49,6 @@ function submitSegmentFunc(drawing){
 		if (!segment.sid){
 			segment.sid = ++drawing.strokeCount;
 		}
-		console.log("recieved segment \##{drawing.segments.length} of stroke ##{segment.sid} from client ##{clientId}");
 		drawing.segments.push(segment);
 		drawing.newSegmentEmitter.emit(clientId);
 		return segment.sid;
