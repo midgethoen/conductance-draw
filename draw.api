@@ -34,7 +34,8 @@ function changeStream(drawing){
 			|client|
 			idx++;
 			if (client !== clientId){
-				reciever(drawing.segments[idx]);
+				//XXX: I would somehow cause a queue overflow otherwise, should discuss
+				spawn reciever(drawing.segments[idx]);
 			}
 		}
 	});
