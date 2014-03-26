@@ -17,29 +17,41 @@ function startChain(){alert('chain')};
     [drawingId, drawing]  = api.getDrawing(drawingId);
   } catch (e){
     console.log(e) //drawing does not exist or something like that
-    var l = api.getDrawing(); //?????????? whuuuuuut, why can't I assign directly
-    [drawingId, drawing] = l;
+    [drawingId, drawing] = api.getDrawing();
   }
   window.location.hash = '#'+drawingId;
 
-  //create something to draw on
-  var canvas = @DrawingCanvas(drawing);
-  @mainContent .. @replaceContent([
-    @BSNav('Conductance draw', [
-      @A('Invite someone' 
-        .. @Mechanism(){|a|
-          a .. @when('click', invite)
-        }),
-      @A('Start chain drawing' 
-        .. @Mechanism(){|a|
-          a .. @when('click', startChain)
-        }),
-    ]),
-    canvas,
-    @Colorpicker(['red', 'green', 'orange'], canvas.color),
-    //@Div(`select color: ${canvas.color .. @transform( c -> c.toUpperCase())}`),
-    @ThicknessSelector(canvas.thickness, 150, canvas.color),
-  ]);
+  //create the app components
+  var 
+    canvas = @DrawingCanvas(drawing),
+    nav = @BSNav('Conductance draw', [
+              @A('Invite someone' 
+                .. @Mechanism(){|a|
+                  a .. @when('click', invite)
+                }),
+              @A('Start chain drawing' 
+                .. @Mechanism(){|a|
+                  a .. @when('click', startChain)
+                }),
+            ]),
+     colorPicker = @Colorpicker(['red', 'green', 'orange'], canvas.color),
+     thicknessSelector = @ThicknessSelector(canvas.thickness, 150, canvas.color),
+     mdDev = 9;
+  @mainContent .. @replaceContent([`
+    $nav
+    <div class="row">
+      <div class="col-sm-12 col-md-${mdDev}">$canvas</div>
+      <div class="col-xs-12 col-sm-6 xcol-md-offset-${mdDev} col-md-${12-mdDev}">
+        <h4>Choose color</h4>
+        $colorPicker
+      </div>
+      <div class="col-xs-12 col-sm-6 xcol-md-offset-${mdDev} col-md-${12-mdDev}">
+        <h4>Choose brush size</h4>
+        $thicknessSelector
+      </div>
+    </div>
+    
+ `]);
 
 //  @doModal({
 //    title: 'Welcome to Conducatance draw!',
