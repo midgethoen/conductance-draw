@@ -58,12 +58,15 @@ function ThicknessSelector(thickness, max, backgroundColor){
       |div|
       div .. @when('mousedown'){||
         waitfor {
-          document.. @when('mousemove'){
+          div.. @when('mousemove'){
             |event|
-            thickness.set( calcDistanceFromCenter(div, [event.x, event.y]) );
+            thickness.set(2 * Math.sqrt(  
+              Math.pow(event.offsetX-event.target.getBoundingClientRect().height/2, 2) +
+              Math.pow(event.offsetY-event.target.getBoundingClientRect().width/2, 2) 
+            ));
           }
         } or {
-          document.. @wait('mouseup');
+          div .. @wait(['mouseup', 'mouseleave']);
         }
       }
     };

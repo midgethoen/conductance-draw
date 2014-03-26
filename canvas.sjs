@@ -2,7 +2,7 @@
 
 function getPos(event, elem){
     if (!elem) elem = event.toElement;
-    return [event.x - elem.offsetLeft, event.y - elem.offsetTop];
+    return [event.offsetX, event.offsetY];
   }
 
 function DrawingCanvas(drawing){
@@ -63,7 +63,7 @@ function DrawingCanvas(drawing){
           segment.sid = strokeId;
           localSegments.set(segment);
           waitfor {
-            document.body .. @when('mousemove'){
+            canvas.. @when('mousemove'){
               |event|
               var segment = {
                 coord:getPos(event, canvas),
@@ -73,7 +73,7 @@ function DrawingCanvas(drawing){
               localSegments.set(segment);
             }
           } or {
-            var event = document.body .. @wait('mouseup');
+            var event = canvas.. @wait(['mouseup', 'mouseleave']);
             var segment = {
               coord:getPos(event, canvas),
               sid: strokeId,
