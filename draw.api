@@ -4,22 +4,22 @@
  * sample:
  *
  * drawings = {
- * 		drawin-1-id: {
- * 			segments: [
- * 					{coord:[12, 23], sid:3},
- * 					{x:12 y:23 sid:3},
- * 					{x:12 y:23 sid:3},
- * 				],
- * 		},
- * 		... 
- * 		drawin-x-id: {
- * 			segments: [
- * 					{x:12 y:23 sid:3},
- * 					{x:12 y:23 sid:3},
- * 					{x:12 y:23 sid:3},
- * 				]
- * 		},
- * 	}
+ *     drawin-1-id: {
+ *       segments: [
+ *           {coord:[12, 23], sid:3},
+ *           {x:12 y:23 sid:3},
+ *           {x:12 y:23 sid:3},
+ *         ],
+ *     },
+ *     ... 
+ *     drawin-x-id: {
+ *       segments: [
+ *           {x:12 y:23 sid:3},
+ *           {x:12 y:23 sid:3},
+ *           {x:12 y:23 sid:3},
+ *         ]
+ *     },
+ *   }
  */
 var drawings = {};
 
@@ -27,33 +27,33 @@ var drawings = {};
  * Create a stream which outputs newly added segments to a drawing
  */
 function changeStream(drawing){
-	var clientId = drawing.clientCount;
-	var idx = drawing.segments.length - 1;
-	return @Stream(function(reciever){
-		drawing.newSegmentEmitter.when({queue: true}){
-			|client|
-			idx++;
-			if (client !== clientId){
-				//XXX: I would somehow cause a queue overflow otherwise, should discuss
-				spawn reciever(drawing.segments[idx]);
-			}
-		}
-	});
+  var clientId = drawing.clientCount;
+  var idx = drawing.segments.length - 1;
+  return @Stream(function(reciever){
+    drawing.newSegmentEmitter.when({queue: true}){
+      |client|
+      idx++;
+      if (client !== clientId){
+        //XXX: I would somehow cause a queue overflow otherwise, should discuss
+        spawn reciever(drawing.segments[idx]);
+      }
+    }
+  });
 }
 
 /*
  * Create a function through which a client can submit new segments.
  */
 function submitSegmentFunc(drawing){
-	var clientId = drawing.clientCount;
-	return function(segment){
-		if (!segment.sid){
-			segment.sid = ++drawing.strokeCount;
-		}
-		drawing.segments.push(segment);
-		drawing.newSegmentEmitter.emit(clientId);
-		return segment.sid;
-	}
+  var clientId = drawing.clientCount;
+  return function(segment){
+    if (!segment.sid){
+      segment.sid = ++drawing.strokeCount;
+    }
+    drawing.segments.push(segment);
+    drawing.newSegmentEmitter.emit(clientId);
+    return segment.sid;
+  }
 }
 
 /*
@@ -64,48 +64,48 @@ function submitSegmentFunc(drawing){
  */
 function getDrawing(drawingId){
   var log = '';
-	if (!drawingId){
-		//create a new drawing
-		drawingId = generateDrawingId();
-		while (drawings[drawingId] !== undefined){
-			drawingId = generateDrawingId();
-		}
-		log += "creating new drawing: #{drawingId}";
-		drawings[drawingId] = {
-			segments:[], 
-			newSegmentEmitter:@Emitter(),
-			clientCount: 0,
-			strokeCount: 0,
-		};
-	} else if (!drawings[drawingId]) {
-		throw 'Unknown drawing id';
-	} else {
-		log += "fetching drawing: #{drawingId}";
-	}
-	drawings[drawingId].clientCount++;
+  if (!drawingId){
+    //create a new drawing
+    drawingId = generateDrawingId();
+    while (drawings[drawingId] !== undefined){
+      drawingId = generateDrawingId();
+    }
+    log += "creating new drawing: #{drawingId}";
+    drawings[drawingId] = {
+      segments:[], 
+      newSegmentEmitter:@Emitter(),
+      clientCount: 0,
+      strokeCount: 0,
+    };
+  } else if (!drawings[drawingId]) {
+    throw 'Unknown drawing id';
+  } else {
+    log += "fetching drawing: #{drawingId}";
+  }
+  drawings[drawingId].clientCount++;
 
-	log += "; for client \##{drawings[drawingId].clientCount}";
+  log += "; for client \##{drawings[drawingId].clientCount}";
 
-	var drawing = drawings[drawingId];
-	drawing.changes = drawing .. changeStream;
-	drawing.submitSegment = drawing .. submitSegmentFunc;
+  var drawing = drawings[drawingId];
+  drawing.changes = drawing .. changeStream;
+  drawing.submitSegment = drawing .. submitSegmentFunc;
 
-	console.log(log);
-	
-	return [
-			drawingId, 
-			drawing,
-	];
+  console.log(log);
+  
+  return [
+      drawingId, 
+      drawing,
+  ];
 }
 exports.getDrawing = getDrawing;
 
 var words = [
-	['very', 'quite', 'disturbingly', 'satisfyingly', 'distinguishably'],
-	['large', 'small', 'digestable', 'weird', 'wrong'],
-	['football', 'fish', 'plate', 'horse', 'sandwich', 'ashtray'],
+  ['very', 'quite', 'disturbingly', 'satisfyingly', 'distinguishably'],
+  ['large', 'small', 'digestable', 'weird', 'wrong'],
+  ['football', 'fish', 'plate', 'horse', 'sandwich', 'ashtray'],
 ];
 function generateDrawingId(){
-		var rand = a -> a[Math.floor(Math.random() * a.length)];
-		return (words .. @map(rand)).join('-');
+    var rand = a -> a[Math.floor(Math.random() * a.length)];
+    return (words .. @map(rand)).join('-');
 }
 
