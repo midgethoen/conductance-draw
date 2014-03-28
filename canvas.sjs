@@ -8,10 +8,18 @@ function getPos(event, elem){
 function DrawingCanvas(drawing){
   var color = @ObservableVar('black');
   var thickness = @ObservableVar(10);
-  var canvas =  @Canvas('',{width:500, height:500})
+  var canvas =  @Canvas('',{width:1000, height:1000})
     .. @Id('canvas') //TODO: might want to increment the id somehow
-     .. @Style('{width: 500px; height: 500px;cursor:crosshair;}')
+     .. @Style('{width: 100%;cursor:crosshair;}')
     .. @Shadow()
+    .. @Mechanism(){
+      |canvas|
+      document .. @when('resize'){
+        |canvas|
+        console.log('resize');
+        canvas.css.height = canvas.clientWidth + 'px';
+      }
+    }
     .. @Mechanism(){
       |canvas|
       var context = canvas.getContext('2d');
@@ -51,11 +59,12 @@ function DrawingCanvas(drawing){
           strokes[segment.sid] = segment;
         }
       } and {
+        var toCanvasCoords = ([x,y]) -> [x/canvas.clientWidth*1000,y/canvas.clientHeight*1000];
         canvas .. @when('mousedown'){
           |event|
           //start a new stroke
           var segment = {
-            coord: getPos(event), 
+            coord: getPos(event) .. toCanvasCoords, 
             color: color.get(),
             thickness: thickness.get(),
           };
@@ -66,7 +75,7 @@ function DrawingCanvas(drawing){
             canvas.. @when('mousemove'){
               |event|
               var segment = {
-                coord:getPos(event, canvas),
+                coord:getPos(event, canvas) .. toCanvasCoords,
                 sid: strokeId,
               };
               drawing.submitSegment(segment);
@@ -75,7 +84,7 @@ function DrawingCanvas(drawing){
           } or {
             var event = canvas.. @wait(['mouseup', 'mouseleave']);
             var segment = {
-              coord:getPos(event, canvas),
+              coord:getPos(event, canvas) .. toCanvasCoords,
               sid: strokeId,
             };
             drawing.submitSegment(segment);

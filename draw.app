@@ -50,20 +50,18 @@ var EZButton = (content, func) -> (@Button(content) .. @Mechanism{|btn|btn .. @w
     }
   }
   
-  function showDrawing(bla,drawingId){
-console.log(drawingId);    
+  function showDrawing(route, drawingId){
     var drawing;
-    if (drawingId){
-      try {
-        [drawingId, drawing]  = api.getDrawing(drawingId);
-      } catch (e){
-        console.log(e); //drawing does not exist or something like that
-        [drawingId, drawing] = api.getDrawing();
-      }
-    } else {
-      
+    try {
+      [drawingId, drawing]  = api.getDrawing(drawingId);
+    } catch (e){
+      console.log(e); //drawing does not exist or something like that
+      [drawingId, drawing] = api.getDrawing();
     }
-
+    
+    window.location.hash = '#drawing/'+drawingId;
+    
+    console.log(drawing);
     var 
       canvas = @DrawingCanvas(drawing),
       colorPicker = @Colorpicker(['red', 'green', 'orange'], canvas.color),
@@ -84,7 +82,7 @@ console.log(drawingId);
       
    `]){
       |drawingUI|
-      if (window.location.hash === '#create'){
+      if (route === 'create'){
         @doModal({
             title: 'Create drawing',
             body: [
@@ -96,7 +94,6 @@ console.log(drawingId);
           |dialog|
           dialog.querySelector('#go') .. @wait('click');
         }
-        window.location.hash = '#drawing/'+drawingId;
       }
       hold();
     }
