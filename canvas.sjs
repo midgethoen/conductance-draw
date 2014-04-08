@@ -78,7 +78,7 @@ function DrawingCanvas(drawing){
                 coord:getPos(event, canvas) .. toCanvasCoords,
                 sid: strokeId,
               };
-              drawing.submitSegment(segment);
+              spawn drawing.submitSegment(segment);
               localSegments.set(segment);
             }
           } or {
@@ -87,7 +87,7 @@ function DrawingCanvas(drawing){
               coord:getPos(event, canvas) .. toCanvasCoords,
               sid: strokeId,
             };
-            drawing.submitSegment(segment);
+            spawn drawing.submitSegment(segment);
             localSegments.set(segment);
           }
       }
