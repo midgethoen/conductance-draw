@@ -1,27 +1,54 @@
-@ = require(['mho:std']);
+@ = require([
+  'mho:std',
+  'sjs:lru-cache',
+  'sjs:object',
+  'mho:server/storage',
+]);
 
 /*
  * sample:
  *
- * drawings = {
+ * activeDrawings = {
  *     drawin-1-id: {
  *       segments: [
  *           {coord:[12, 23], sid:3},
- *           {x:12 y:23 sid:3},
- *           {x:12 y:23 sid:3},
+ *           {x:12, y:23, sid:3, color: black, thickness:15},
+ *           {x:12, y:23, sid:3},
  *         ],
  *     },
  *     ... 
  *     drawin-x-id: {
  *       segments: [
- *           {x:12 y:23 sid:3},
+ *           {x:12 y:23 sid:3 color: black, thickness:15},
  *           {x:12 y:23 sid:3},
  *           {x:12 y:23 sid:3},
  *         ]
  *     },
  *   }
  */
-var drawings = {};
+var activeDrawings = {};
+var drawingCache = @makeCache();
+var db = @Storage('./drawingDB');
+
+function finishDrawing(drawingId){
+  var drawing = activeDrawings[drawingId];
+  delete activeDrawings[drawingId];
+
+  drawingCache.put(drawingId);
+  db.put('drawing/'+drawingId, JSON.stringify(drawing));
+}
+
+function loadDrawing(drawingId){
+   var drawing = drawingCache.get(drawingId);
+   if (!drawing){
+      drawing = db.get('drawing/'+drawingId);
+      if (drawing){
+        drawing = JSON.parse(drawing);
+        drawingCache.put(drawingId, drawing);
+      }
+   }
+   return drawing;
+}
 
 /*
  * Create a stream which outputs newly added segments to a drawing
@@ -52,6 +79,7 @@ function submitSegmentFunc(drawing){
     }
     drawing.segments.push(segment);
     drawing.newSegmentEmitter.emit(clientId);
+    drawing.lastEdited = new Date();
     return segment.sid;
   }
 }
@@ -67,26 +95,28 @@ function getDrawing(drawingId){
   if (!drawingId){
     //create a new drawing
     drawingId = generateDrawingId();
-    while (drawings[drawingId] !== undefined){
+    while (activeDrawings[drawingId] !== undefined){
       drawingId = generateDrawingId();
     }
     log += "creating new drawing: #{drawingId}";
-    drawings[drawingId] = {
+    activeDrawings[drawingId] = {
+      lastEdited: new Date(),
       segments:[], 
       newSegmentEmitter:@Emitter(),
       clientCount: 0,
       strokeCount: 0,
     };
-  } else if (!drawings[drawingId]) {
+  } else if (!activeDrawings[drawingId]) {
     throw 'Unknown drawing id';
   } else {
     log += "fetching drawing: #{drawingId}";
   }
-  drawings[drawingId].clientCount++;
+  activeDrawings[drawingId].clientCount++;
 
-  log += "; for client \##{drawings[drawingId].clientCount}";
+  log += "; for client \##{activeDrawings[drawingId].clientCount}";
 
-  var drawing = drawings[drawingId];
+  var drawing = activeDrawings[drawingId];
+
   drawing.changes = drawing .. changeStream;
   drawing.submitSegment = drawing .. submitSegmentFunc;
 
@@ -98,6 +128,41 @@ function getDrawing(drawingId){
   ];
 }
 exports.getDrawing = getDrawing;
+
+function getGallery(){
+  return @Stream(function(reciever){
+    db.query('drawing/', 'drawing/\xFF') .. @each(){
+      |[binKey, binDraw]|
+      console.log(binKey.toString());
+      //would it be more efficient to stream the raw data?
+      //probably, lets keep it simple for now
+      reciever([
+        binKey.toString(),
+        JSON.parse(binDraw.toString()),
+      ]);
+    }
+  })
+}
+exports.getGallery = getGallery;
+
+
+//spawn a process which cleans up inactive drawings
+function cleanService(){
+  while (!hold(4000)){
+    var c=0;
+    activeDrawings .. @propertyPairs .. @each{
+      |[drawingId, drawing]|
+      //console.log("comparing '#{new Date.getTime()}' with #{drawing.lastEdited.getTime()}");
+      if (new Date().getTime() - drawing.lastEdited.getTime() > 60000){
+        //hasn't been touched for a minute
+        finishDrawing(drawingId);
+        c++;
+      }
+    }
+    console.info(c>0?"cleaned up #{c} drawings":"did not clean anything up");
+  } 
+}
+spawn cleanService();
 
 var words = [
   ['very', 'quite', 'disturbingly', 'satisfyingly', 'distinguishably'],

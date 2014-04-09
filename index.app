@@ -7,23 +7,8 @@
   './router',
 ]);
 
-var EZButton = (content, func) -> (@Button(content) .. @Mechanism{|btn|btn .. @when('click', func)});
-
-//var drawingId;
-//if (window.location.hash.length > 1){
-//  drawingId = window.location.hash.substr(1); 
-//}
-
 @mainContent .. @appendContent(
   @BSNav('Conductance draw', [
-//      @A('Invite someone' 
-//        .. @Mechanism(){|a|
-//          a .. @when('click', invite)
-//        }),
-//      @A('Start chain drawing' 
-//        .. @Mechanism(){|a|
-//          a .. @when('click', startChain)
-//        }),
     ])
 );
 
@@ -31,9 +16,6 @@ var EZButton = (content, func) -> (@Button(content) .. @Mechanism{|btn|btn .. @w
   |api|
 
   function showGallery(){
-    function create(){
-    }
-    function join(){alert('Yeah, this thould really be implemented...')};
     var 
       welcome = `
       <div class="row">
@@ -43,11 +25,26 @@ var EZButton = (content, func) -> (@Button(content) .. @Mechanism{|btn|btn .. @w
           ${@A('Join drawing',{href:'#join', 'class':'btn'})}
         </div>
       </div>`,
-      gallery= '';
+      drawings = @ObservableVar(''),
+      gallery = `
+      <div class="row">
+        ${drawings}
+      </div>`;
     @mainContent .. @appendContent([welcome, gallery]){
       ||
-      hold();//do i need this?      
+      api.getGallery() .. @each(){
+        |[id, drawing]|
+        var c = @DrawingCanvas(drawing);
+        console.log(drawing);
+        drawings.modify(function(ds){
+          return [
+            @Div(c,{'class':'col-sm-2'})
+          ].concat(ds)
+        });
+      }
+      hold();
     }
+
   }
   
   function showDrawing(route, drawingId){

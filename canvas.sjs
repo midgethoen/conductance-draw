@@ -33,6 +33,8 @@ function DrawingCanvas(drawing){
         // #1 the initial state of the drawing
         // #2 changes made locally
         // #3 changes beeing pushed from the server    
+        console.log(drawing.changes);
+        if (!drawing.changes) drawing.changes = [];
         drawing.segments 
           .. @concat( 
             drawing.changes 
