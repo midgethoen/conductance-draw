@@ -2,7 +2,8 @@
   'mho:std',
   'sjs:lru-cache',
   'sjs:object',
-  'mho:server/storage',
+  'mho:server/storage', //???  is this neccesary?
+  {name:'ids', id:'./ids.sjs'},
 ]);
 
 /*
@@ -94,9 +95,9 @@ function getDrawing(drawingId){
   var log = '';
   if (!drawingId){
     //create a new drawing
-    drawingId = generateDrawingId();
+    drawingId = @ids.newID(); //TODO: use dowhile
     while (activeDrawings[drawingId] !== undefined){
-      drawingId = generateDrawingId();
+      drawingId = @ids.newID();
     }
     log += "creating new drawing: #{drawingId}";
     activeDrawings[drawingId] = {
@@ -163,14 +164,3 @@ function cleanService(){
   } 
 }
 spawn cleanService();
-
-var words = [
-  ['very', 'quite', 'disturbingly', 'satisfyingly', 'distinguishably'],
-  ['large', 'small', 'digestable', 'weird', 'wrong'],
-  ['football', 'fish', 'plate', 'horse', 'sandwich', 'ashtray'],
-];
-function generateDrawingId(){
-    var rand = a -> a[Math.floor(Math.random() * a.length)];
-    return (words .. @map(rand)).join('-');
-}
-
