@@ -14,7 +14,7 @@ function DrawingCanvas(drawing){
     .. @Shadow()
     .. @Mechanism(){
       |canvas|
-      document .. @when('resize'){
+      document .. @events('resize') .. @each{
         |canvas|
         console.log('resize');
         canvas.css.height = canvas.clientWidth + 'px';
@@ -30,16 +30,9 @@ function DrawingCanvas(drawing){
         var strokes = {};
         //draw the drawing from all segments
         //there are 3 streams/sequences to be processed:
-        // #1 the initial state of the drawing
-        // #2 changes made locally
-        // #3 changes beeing pushed from the server    
-        console.log(drawing.changes);
-        if (!drawing.changes) drawing.changes = [];
-        drawing.segments 
-          .. @concat( 
-            drawing.changes 
-            .. @combine(localSegments))
-          .. @each{
+        // #1 changes made locally
+        // #2 changes beeing pushed from the server    
+        drawing.changes .. @transform(function(x){x .. console.log; return x})  .. @unpack .. @combine(localSegments) .. @each{
           |segment|
           if (!segment) continue; //the first element of localSegments is not a segment...
           var precSeg = strokes[segment.sid];
@@ -62,7 +55,7 @@ function DrawingCanvas(drawing){
         }
       } and {
         var toCanvasCoords = ([x,y]) -> [x/canvas.clientWidth*1000,y/canvas.clientHeight*1000];
-        canvas .. @when('mousedown'){
+        canvas .. @events('mousedown') .. @each{
           |event|
           //start a new stroke
           var segment = {
@@ -74,7 +67,7 @@ function DrawingCanvas(drawing){
           segment.sid = strokeId;
           localSegments.set(segment);
           waitfor {
-            canvas.. @when('mousemove'){
+            canvas.. @events('mousemove') .. @each(){
               |event|
               var segment = {
                 coord:getPos(event, canvas) .. toCanvasCoords,
@@ -84,7 +77,7 @@ function DrawingCanvas(drawing){
               localSegments.set(segment);
             }
           } or {
-            var event = canvas.. @wait(['mouseup', 'mouseleave']);
+            var event = canvas .. @events(['mouseup', 'mouseleave']) .. @wait;
             var segment = {
               coord:getPos(event, canvas) .. toCanvasCoords,
               sid: strokeId,

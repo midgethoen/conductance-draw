@@ -14,7 +14,6 @@
 
 @withAPI('./draw.api'){
   |api|
-
   function showGallery(){
     var 
       welcome = `
@@ -32,16 +31,18 @@
       </div>`;
     @mainContent .. @appendContent([welcome, gallery]){
       ||
-      api.getGallery() .. @each(){
-        |[id, drawing]|
-        var c = @DrawingCanvas(drawing);
-        console.log(drawing);
-        drawings.modify(function(ds){
-          return [
-            @Div(c,{'class':'col-sm-2'})
-          ].concat(ds)
-        });
-      }
+     // api.getGallery() .. @each(){
+     //   |[id, drawing]|
+     //   console.log("drawGal:#{id}");
+     //   var c = @DrawingCanvas(drawing);
+     //   console.log(drawing);
+     //   drawings.modify(function(ds){
+     //     return [
+     //       @Div(c,{'class':'col-sm-2'})
+     //     ].concat(ds)
+     //   });
+     // }
+     // console.log('looped through all drawings')
       hold();
     }
 
@@ -55,9 +56,7 @@
       console.log(e); //drawing does not exist or something like that
       [drawingId, drawing] = api.getDrawing();
     }
-    
     window.location.hash = '#drawing/'+drawingId;
-    
     console.log(drawing);
     var 
       canvas = @DrawingCanvas(drawing),

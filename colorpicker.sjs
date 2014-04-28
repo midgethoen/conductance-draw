@@ -33,7 +33,7 @@ function Colorpicker(colors, color){
     }
 ') .. @Mechanism(){
     |picker|
-    picker.querySelectorAll('input') .. @when(['change']){
+    picker.querySelectorAll('input') .. @events(['change']) .. @each(){
       |event|
       color.set(event.srcElement.nextSibling.children[0].style.backgroundColor);
     }
@@ -56,9 +56,9 @@ function ThicknessSelector(thickness, max, backgroundColor){
       }`
     ) .. @Mechanism(){
       |div|
-      div .. @when('mousedown'){||
+      div .. @events('mousedown') .. @each{||
         waitfor {
-          div.. @when('mousemove'){
+          div.. @events('mousemove') .. @each{
             |event|
             thickness.set(2 * Math.sqrt(  
               Math.pow(event.offsetX-event.target.getBoundingClientRect().height/2, 2) +
@@ -66,7 +66,7 @@ function ThicknessSelector(thickness, max, backgroundColor){
             ));
           }
         } or {
-          div .. @wait(['mouseup', 'mouseleave']);
+          div .. @events(['mouseup', 'mouseleave']) .. @wait;
         }
       }
     };

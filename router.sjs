@@ -34,7 +34,7 @@ function Router(routes){
     } or {
       var newRoute;
       do {
-        window .. @wait('hashchange');
+        window .. @events('hashchange') .. @wait();
         [newRoute, args] = determineRoute(); 
         if (route === newRoute){
           console.log('dont route \'cause the dest are the same');
