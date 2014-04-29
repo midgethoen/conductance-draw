@@ -5,15 +5,13 @@ function getPos(event, elem){
     return [event.offsetX, event.offsetY];
   }
 
-function DrawingCanvas(drawing){
-  var color = @ObservableVar('black');
-  var thickness = @ObservableVar(10);
-  var canvas =  @Canvas('',{width:1000, height:1000})
-    .. @Id('canvas') //TODO: might want to increment the id somehow
-     .. @Style('{width: 100%;cursor:crosshair;}')
+function BaseCanvas(segmentStream){
+  var canvas = @Canvas('',{width:1000, height:1000})
+    .. @Style('{width: 100%;}')
     .. @Shadow()
     .. @Mechanism(){
       |canvas|
+      //TODO: use css for this
       document .. @events('resize') .. @each{
         |canvas|
         console.log('resize');
@@ -22,62 +20,68 @@ function DrawingCanvas(drawing){
     }
     .. @Mechanism(){
       |canvas|
+      // setup drawing context
       var context = canvas.getContext('2d');
       context.lineCap = "round";
-      var localSegments = @ObservableVar();
-      waitfor{
-        // for every stroke we keep track of the last segment, so we can append the last
-        var strokes = {};
-        //draw the drawing from all segments
-        //there are 3 streams/sequences to be processed:
-        // #1 changes made locally
-        // #2 changes beeing pushed from the server    
-        drawing.changes .. @transform(function(x){x .. console.log; return x})  .. @unpack .. @combine(localSegments) .. @each{
-          |segment|
-          if (!segment) continue; //the first element of localSegments is not a segment...
-          var precSeg = strokes[segment.sid];
-          if (precSeg !== undefined){
-            //there is a preceding element to this stroke
-            if (!segment.color) 
-              segment.color = (precSeg && precSeg.color) ? precSeg.color : 'grey';
-            if (!segment.thickness) 
-              segment.thickness = (precSeg && precSeg.thickness) ? precSeg.thickness : 3;
-            context.beginPath();
-            context.strokeStyle = segment.color;
-            context.lineWidth = segment.thickness;
-            context.moveTo.apply(context, precSeg.coord); 
-            context.lineTo.apply(context, segment.coord);
-            context.stroke();
-            //context.endPath();
-            context
-          }
-          strokes[segment.sid] = segment;
+      //for every stroke we keep track of the last segment, so we can append after the last
+      var strokes = {};
+      //draw the drawing from all segments
+      segmentStream .. @each{
+        |segment|
+        if (!segment) continue; //the first element of localSegments is not a segment...
+        var precSeg = strokes[segment.sid];
+        if (precSeg !== undefined){
+          //there is a preceding element to this stroke
+          if (!segment.color)
+            segment.color = (precSeg && precSeg.color) ? precSeg.color : 'grey';
+          if (!segment.thickness) 
+            segment.thickness = (precSeg && precSeg.thickness) ? precSeg.thickness : 3;
+          context.beginPath();
+          context.strokeStyle = segment.color;
+          context.lineWidth = segment.thickness;
+          context.moveTo.apply(context, precSeg.coord); 
+          context.lineTo.apply(context, segment.coord);
+          context.stroke();
         }
-      } and {
-        var toCanvasCoords = ([x,y]) -> [x/canvas.clientWidth*1000,y/canvas.clientHeight*1000];
-        canvas .. @events('mousedown') .. @each{
-          |event|
-          //start a new stroke
-          var segment = {
-            coord: getPos(event) .. toCanvasCoords, 
-            color: color.get(),
-            thickness: thickness.get(),
-          };
-          var strokeId = drawing.submitSegment(segment);
-          segment.sid = strokeId;
-          localSegments.set(segment);
-          waitfor {
-            canvas.. @events('mousemove') .. @each(){
-              |event|
-              var segment = {
-                coord:getPos(event, canvas) .. toCanvasCoords,
-                sid: strokeId,
-              };
-              spawn drawing.submitSegment(segment);
-              localSegments.set(segment);
-            }
-          } or {
-            var event = canvas .. @events(['mouseup', 'mouseleave']) .. @wait;
+        strokes[segment.sid] = segment;
+      }
+    }
+  return canvas;
+}
+
+function DrawingCanvas(drawing){
+  //pencil properties
+  var 
+    color = @ObservableVar('black'),
+    thickness = @ObservableVar(10);
+  //segment stream
+  var 
+    localSegments = @ObservableVar(),
+    segmentStream = @combine(
+      drawing.segments .. @unpack,
+      localSegments
+    );
+  var canvas = BaseCanvas(segmentStream)
+    .. @Style('{
+        cursor:crosshair;
+       }')
+    .. @Mechanism(){
+      |canvas|
+      __js var toCanvasCoords = ([x,y]) -> [x/canvas.clientWidth*1000,y/canvas.clientHeight*1000];
+      canvas .. @events('mousedown') .. @each{
+        |event|
+        //start a new stroke
+        var segment = {
+          coord: getPos(event) .. toCanvasCoords, 
+          color: color.get(),
+          thickness: thickness.get(),
+        };
+        var strokeId = drawing.submitSegment(segment);
+        segment.sid = strokeId;
+        localSegments.set(segment);
+        waitfor {
+          canvas.. @events('mousemove') .. @each(){
+            |event|
             var segment = {
               coord:getPos(event, canvas) .. toCanvasCoords,
               sid: strokeId,
@@ -85,12 +89,24 @@ function DrawingCanvas(drawing){
             spawn drawing.submitSegment(segment);
             localSegments.set(segment);
           }
+        } or {
+          var event = canvas .. @events(['mouseup', 'mouseleave']) .. @wait;
+          var segment = {
+            coord:getPos(event, canvas) .. toCanvasCoords,
+            sid: strokeId,
+          };
+          spawn drawing.submitSegment(segment);
+          localSegments.set(segment);
+        }
       }
     }
-  }
   canvas.color = color; 
-   canvas.thickness = thickness;
+  canvas.thickness = thickness;
   return canvas;
 }
-
 exports.DrawingCanvas = DrawingCanvas;
+
+function GalleryCanvas(drawing){
+  return BaseCanvas(drawing.segments .. @unpack);
+}
+exports.GalleryCanvas = GalleryCanvas;

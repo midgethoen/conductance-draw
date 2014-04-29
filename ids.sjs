@@ -7,5 +7,5 @@ var words = [
 ];
 exports.newID = function(){
     var rand = a -> a[Math.floor(Math.random() * a.length)];
-    return (words .. @map(rand)).join('-');
+    return (words .. @map(rand)).concat(parseInt(999*Math.random())).join('-');
 }

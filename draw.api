@@ -8,49 +8,34 @@
 
 /*
  * Drawing datastructure:
- *
- * drawing = {
- *       segments: [
- *           {coord:[12, 23], sid:3},
- *           {x:12, y:23, sid:3, color: black, thickness:15},
- *           {x:12, y:23, sid:3},
- *         ],
- *     }
- *
- *
- * An active drawing has some additional info for registerred clients 
- *
- * activeDrawing {      
- *       clientCount: 4,
- *       clients: [
- *         {id: 1},
- *         {id: 3},
- *       ],
- *       segments: [
- *           ... 
- *       ],
- *     },
- *   }
  */
 var schema = {
   id: null,
-  segments: [],
+  segments: [/*
+    {coord:[12, 23], sid:3},
+    {x:12, y:23, sid:3, color: black, thickness:15},
+    {x:12, y:23, sid:3},
+  */],
 };
 var activeSchema = {
   newSegmentEmitter:@Emitter(),
   clientCount: 0,
   strokeCount: 0,
+  clients: [/*
+    {id: 1},
+    {id: 3},
+  */],
 };
 
-var activeDrawings = {}; //hold's drawing and registerred clients 
-var drawingCache = @lru.makeCache();
-var db = @storage.Storage('./drawingDB');
+var
+  activeDrawings = {},
+  drawingCache = @lru.makeCache(),
+  db = @storage.Storage('./drawingDB');
 
-function loadDrawing(drawingId){ //XXX: should really do better naming
+function loadDrawing(drawingId){
   var drawing = undefined;
   //get it from the cache
   if ( (drawing=drawingCache.get(drawingId)) !== null ){
-    console.log("did find in cache");
     return drawing;
   }
   //get it from the db and cache it
@@ -60,44 +45,17 @@ function loadDrawing(drawingId){ //XXX: should really do better naming
     //add fields necessary for active drawing 
     drawing = activeSchema .. @clone .. @merge(drawing);
     drawingCache.put(drawingId, drawing);
-    //??? can i do 'return drawing' here?
-    console.log("did find in db");
   }
   return drawing;
 }
 
-//TODO: strip data which is not supposed to go in the db (clientinfo)
 function putDrawing(drawingId, drawing){
-  //store in the cache
-  //??? need i put it back in the cache since i modify the object directly. 
-  // yes, if only for marking it as most recently used
+  //store in the cache, if only for marking as recently used
   drawingCache.put(drawingId, drawing);
   //write to the database
-  //??? would it be smart to spawn this?
-  var d = schema .. @clone .. @override(drawing);
-  console.log('will put', 'drawing/'+drawingId, JSON.stringify(d) )
-  db.put('drawing/'+drawingId, JSON.stringify(d));
+  var d = schema .. @clone .. @override(drawing); //conform to schema
+  db.put('drawing/'+drawingId, JSON.stringify(d)); //???: spawn?
 }
-
-//function finishDrawing(drawingId){
-//  var drawing = activeDrawings[drawingId];
-//  delete activeDrawings[drawingId];
-//
-//  drawingCache.put(drawingId);
-//  db.put('drawing/'+drawingId, JSON.stringify(drawing));
-//}
-
-//function loadDrawing(drawingId){
-//   var drawing = drawingCache.get(drawingId);
-//   if (!drawing){
-//      drawing = db.get('drawing/'+drawingId);
-//      if (drawing){
-//        drawing = JSON.parse(drawing);
-//        drawingCache.put(drawingId, drawing);
-//      }
-//   }
-//   return drawing;
-//}
 
 /*
  * Create a stream which outputs newly added segments to a drawing
@@ -105,17 +63,17 @@ function putDrawing(drawingId, drawing){
  * The stream also send's empty packets periodically to check if the client is still present 
  *  and if not; cleans up accordingly
  */
-function changeStream(drawing, clientId){
+function segmentStream(drawing, clientId){
   function unregisterClient(){
     //remove the client and cleanup if it was the last
-    drawing.clients = drawing.clients .. @filter(c->c.id != clientId);
+    drawing.clients = drawing.clients .. @filter(c->c.id != clientId) .. @toArray;
     if (!drawing.clients.length){
       console.log("Will cleanup active drawing: #{drawing.id}");
       delete activeDrawings[drawing.id];
     }
   }
   return @Stream(function(reciever){
-    var idx = 0;
+    var idx = 0, once = false;;
     while (1) {
       var sendEmpty = false;
       waitfor {
@@ -123,6 +81,9 @@ function changeStream(drawing, clientId){
       } or {
         hold(30*1000);
         sendEmpty = true;
+      } or {
+        if (once) hold();
+        else once = true;
       }
       var segments = 
         drawing.segments.slice(idx)
@@ -155,8 +116,6 @@ function submitSegmentFunc(drawing, clientId){
     if (!segment.sid){
       segment.sid = ++drawing.strokeCount;
     }
-    //??? naively add client id to every segment, 
-    // might be more efficient to add only to first segment of a stroke
     drawing.segments.push(segment .. @merge({clientId:clientId}));
     drawing.newSegmentEmitter.emit();
     drawing.lastEdited = new Date()
@@ -181,15 +140,9 @@ function getDrawing(drawingId){
       drawingId = @ids.newID();
     } while (loadDrawing(drawingId)) 
     log += "creating new drawing: #{drawingId}";
-    drawing = activeDrawings[drawingId] = {
-      id: drawingId,
-      lastEdited: new Date(),
-      segments:[], 
-      newSegmentEmitter:@Emitter(),
-      clientCount: 0,
-      strokeCount: 0,
-    };
-    putDrawing(drawingId, activeDrawings[drawingId])
+    drawing = activeDrawings[drawingId] = schema .. @merge(activeSchema)
+    drawing.id = drawingId;
+    putDrawing(drawingId, drawing)
   } else if (!loadDrawing(drawingId)){
     throw 'Unknown drawing id';
   } else {
@@ -197,16 +150,26 @@ function getDrawing(drawingId){
     drawing = activeDrawings[drawingId] = loadDrawing(drawingId);
   }
   //prepare the drawing for the client(s)
-  activeDrawings[drawingId].clientCount++;
+  drawing.clientCount++;
+  var clientId = drawing.clientCount;
+  drawing.clients.push({id: clientId});
+  
   log += "; for client \##{activeDrawings[drawingId].clientCount}";
-  var drawing = activeDrawings[drawingId];
-  drawing.changes = drawing .. changeStream;
-  drawing.submitSegment = drawing .. submitSegmentFunc;
   //print to server console 
   console.info(log);
   return [
       drawingId, 
-      drawing,
+      {
+        id: null,
+        submitSegment: null,
+        segments: null
+      } .. @merge(
+          drawing, 
+          {
+            segments: drawing .. segmentStream(clientId), 
+            submitSegment: drawing .. submitSegmentFunc(clientId),
+          }
+        ),
   ];
 }
 exports.getDrawing = getDrawing;
@@ -216,34 +179,8 @@ function getGallery(){
     db.query('drawing/', 'drawing/\xFF') .. @each(){
       |[binKey, binDraw]|
       var key = binKey.toString().replace(/^drawing\//, '');
-      reciever([
-        key,
-        loadDrawing(key),
-      ]);
+      reciever(getDrawing(key));
     }
   })
 }
 exports.getGallery = getGallery;
-
-getGallery() .. @each{
-  |[key, drawing]|
-  console.log(key);
-}
-
-//spawn a process which cleans up inactive drawings
-//function cleanService(){
-//  while (!hold(4000)){
-//    var c=0;
-//    activeDrawings .. @propertyPairs .. @each{
-//      |[drawingId, drawing]|
-//      //console.log("comparing '#{new Date.getTime()}' with #{drawing.lastEdited.getTime()}");
-//      if (new Date().getTime() - drawing.lastEdited.getTime() > 60000){
-//        //hasn't been touched for a minute
-//        finishDrawing(drawingId);
-//        c++;
-//      }
-//    }
-//    console.info(c>0?"cleaned up #{c} drawings":"did not clean anything up");
-//  } 
-//}
-//spawn cleanService()

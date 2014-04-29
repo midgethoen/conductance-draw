@@ -1,53 +1,60 @@
 @ = require([
   'mho:std',
   'mho:app',
-  './canvas',
-  './bootstrap',
-  './colorpicker',
-  './router',
+  './canvas.sjs',
+  './bootstrap.sjs',
+  './colorpicker.sjs',
+  './router.sjs',
 ]);
 
 @mainContent .. @appendContent(
-  @BSNav('Conductance draw', [
-    ])
+  @BSNav('Conductance draw', [])
 );
 
 @withAPI('./draw.api'){
   |api|
   function showGallery(){
     var 
-      welcome = `
-      <div class="row">
-        <div class="col-sm-offset-1 col-sm-10">
-          <h1>Welcome to draw</h1>
-          ${@A('Create drawing',{href:'#create', 'class':'btn'})}
-          ${@A('Join drawing',{href:'#join', 'class':'btn'})}
-        </div>
-      </div>`,
       drawings = @ObservableVar(''),
-      gallery = `
-      <div class="row">
-        ${drawings}
-      </div>`;
-    @mainContent .. @appendContent([welcome, gallery]){
+      gallery = 
+      @Div([
+        drawings, 
+        @Div(`<div class="create"><h1>+</h1></div>`)
+         .. @Class('col-sm-2')
+         .. @On('click'){|| location.hash = "#drawing/"+api.getDrawing()[0] },
+      ]) .. @Class('row')
+       .. @Style('
+        .create { 
+          border: dashed lightgrey thick; 
+          cursor: pointer;
+          width: 100%;
+          height: 0;
+          padding-bottom: 100%;
+        }
+        .create h1 {
+          font-size: 90px;
+          margin: 0 0;
+          text-align: center; 
+          color: lightgrey;
+          position: relative;
+          top: 50%;
+          margin-top: -.7em;
+        }');
+    @mainContent .. @appendContent([gallery]){
       ||
-     // api.getGallery() .. @each(){
-     //   |[id, drawing]|
-     //   console.log("drawGal:#{id}");
-     //   var c = @DrawingCanvas(drawing);
-     //   console.log(drawing);
-     //   drawings.modify(function(ds){
-     //     return [
-     //       @Div(c,{'class':'col-sm-2'})
-     //     ].concat(ds)
-     //   });
-     // }
-     // console.log('looped through all drawings')
+      api.getGallery() .. @each(){
+        |[id, drawing]|
+        drawings.modify(function(ds){
+          return [
+            @A(@Div(@GalleryCanvas(drawing),{'class':'col-sm-2'}), {href: "\#drawing/#{drawing.id}"}),
+          ].concat(ds)
+        });
+      }
       hold();
     }
 
   }
-  
+
   function showDrawing(route, drawingId){
     var drawing;
     try {
@@ -58,19 +65,38 @@
     }
     window.location.hash = '#drawing/'+drawingId;
     console.log(drawing);
-    var 
-      canvas = @DrawingCanvas(drawing),
-      colorPicker = @Colorpicker(['red', 'green', 'orange'], canvas.color),
-      thicknessSelector = @ThicknessSelector(canvas.thickness, 150, canvas.color),
-      mdDev = 9;
+    var colors = [
+        //solarized colorpalette
+        '#002b36', 
+        '#073642', 
+        '#586e75', 
+        '#657b83', 
+        '#839496', 
+        '#93a1a1', 
+        '#eee8d5', 
+        '#fdf6e3', 
+        '#b58900', 
+        '#cb4b16', 
+        '#dc322f', 
+        '#d33682', 
+        '#6c71c4', 
+        '#268bd2', 
+        '#2aa198', 
+        '#859900', 
+      ]; 
+    var canvas = @DrawingCanvas(drawing);
+    canvas.color.set(colors[0]);
+    var colorPicker = @Colorpicker(colors, canvas.color);
+    var thicknessSelector = @ThicknessSelector(canvas.thickness, 150, canvas.color);
+
     @mainContent .. @appendContent([`
       <div class="row">
-        <div class="col-sm-12 col-md-${mdDev}">$canvas</div>
-        <div class="col-xs-12 col-sm-6 xcol-md-offset-${mdDev} col-md-${12-mdDev}">
+        <div class="col-sm-12 col-md-9">$canvas</div>
+        <div class="col-xs-12 col-sm-6 xcol-md-offset-9 col-md-3">
           <h4>Choose color</h4>
           $colorPicker
         </div>
-        <div class="col-xs-12 col-sm-6 xcol-md-offset-${mdDev} col-md-${12-mdDev}">
+        <div class="col-xs-12 col-sm-6 xcol-md-offset-9 col-md-3">
           <h4>Choose brush size</h4>
           $thicknessSelector
         </div>
@@ -88,7 +114,7 @@
             @Button('Let\'s draw!') .. @Id('go'),
           ]}){
           |dialog|
-          dialog.querySelector('#go') .. @wait('click');
+          dialog.querySelector('#go') .. @events('click') .. @wait;
         }
       }
       hold();
@@ -96,9 +122,7 @@
   }
 
   @Router([
-    /gallery/, showGallery, //acts as a default as wel, because the first is used whenever none match
-    /create/, showDrawing, //wil be created when id is omitted
-    /join/, showDrawing, 
+    /gallery/, showGallery, //acts as a default as wel
     /drawing\/([\w-]+)/, showDrawing,
   ]);
 

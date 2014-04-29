@@ -21,8 +21,10 @@ function Colorpicker(colors, color){
     input[type=radio] {
       display: none;
     }
-    div {
+    label {
       display: inline-block;
+    }
+    div {
       width: 40px;
       height: 40px;
       border-radius: 20px;
