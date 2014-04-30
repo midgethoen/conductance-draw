@@ -9,23 +9,27 @@
 /*
  * Drawing datastructure:
  */
-var schema = {
-  id: null,
-  segments: [/*
-    {coord:[12, 23], sid:3},
-    {x:12, y:23, sid:3, color: black, thickness:15},
-    {x:12, y:23, sid:3},
-  */],
-};
-var activeSchema = {
-  newSegmentEmitter:@Emitter(),
-  clientCount: 0,
-  strokeCount: 0,
-  clients: [/*
-    {id: 1},
-    {id: 3},
-  */],
-};
+function Schema(){
+  return {
+    id: null,
+    strokeCount: 0,
+    segments: [/*
+      {coord:[12, 23], sid:3},
+      {x:12, y:23, sid:3, color: black, thickness:15},
+      {x:12, y:23, sid:3},
+    */],
+  };
+}
+function ActiveSchema(){
+  return {
+    newSegmentEmitter:@Emitter(),
+    clientCount: 0,
+    clients: [/*
+      {id: 1},
+      {id: 3},
+    */],
+  };
+}
 
 var
   activeDrawings = {},
@@ -43,7 +47,7 @@ function loadDrawing(drawingId){
     |drawingData|
     drawing = JSON.parse(drawingData.toString());
     //add fields necessary for active drawing 
-    drawing = activeSchema .. @clone .. @merge(drawing);
+    drawing = ActiveSchema() .. @merge(drawing);
     drawingCache.put(drawingId, drawing);
   }
   return drawing;
@@ -53,7 +57,7 @@ function putDrawing(drawingId, drawing){
   //store in the cache, if only for marking as recently used
   drawingCache.put(drawingId, drawing);
   //write to the database
-  var d = schema .. @clone .. @override(drawing); //conform to schema
+  var d = Schema() .. @override(drawing); //conform to schema
   db.put('drawing/'+drawingId, JSON.stringify(d)); //???: spawn?
 }
 
@@ -140,7 +144,9 @@ function getDrawing(drawingId){
       drawingId = @ids.newID();
     } while (loadDrawing(drawingId)) 
     log += "creating new drawing: #{drawingId}";
-    drawing = activeDrawings[drawingId] = schema .. @merge(activeSchema)
+
+    drawing = activeDrawings[drawingId] = Schema() .. @merge(ActiveSchema())
+
     drawing.id = drawingId;
     putDrawing(drawingId, drawing)
   } else if (!loadDrawing(drawingId)){

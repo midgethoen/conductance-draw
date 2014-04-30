@@ -16,39 +16,24 @@
   function showGallery(){
     var 
       drawings = @ObservableVar(''),
-      gallery = 
-      @Div([
-        drawings, 
-        @Div(`<div class="create"><h1>+</h1></div>`)
-         .. @Class('col-sm-2')
-         .. @On('click'){|| location.hash = "#drawing/"+api.getDrawing()[0] },
-      ]) .. @Class('row')
-       .. @Style('
-        .create { 
-          border: dashed lightgrey thick; 
-          cursor: pointer;
-          width: 100%;
-          height: 0;
-          padding-bottom: 100%;
-        }
-        .create h1 {
-          font-size: 90px;
-          margin: 0 0;
-          text-align: center; 
-          color: lightgrey;
-          position: relative;
-          top: 50%;
-          margin-top: -.7em;
-        }');
+      gallery = @Div(null,{'class':'row'})
     @mainContent .. @appendContent([gallery]){
-      ||
+      |gallery|
       api.getGallery() .. @each(){
         |[id, drawing]|
-        drawings.modify(function(ds){
-          return [
-            @A(@Div(@GalleryCanvas(drawing),{'class':'col-sm-2'}), {href: "\#drawing/#{drawing.id}"}),
-          ].concat(ds)
-        });
+        //drawings.modify(function(ds){
+          //return [
+        //  ].concat(ds)
+        //});
+        gallery .. @appendContent(
+        @Div(
+          @A(
+              @GalleryCanvas(drawing),
+              {href: "\#drawing/#{drawing.id}"}
+            ), 
+            {'class':'col-sm-2'}
+          )
+        )
       }
       hold();
     }

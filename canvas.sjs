@@ -67,7 +67,10 @@ function DrawingCanvas(drawing){
        }')
     .. @Mechanism(){
       |canvas|
-      __js var toCanvasCoords = ([x,y]) -> [x/canvas.clientWidth*1000,y/canvas.clientHeight*1000];
+      __js var toCanvasCoords = ([x,y]) -> [
+        parseInt(x/canvas.clientWidth*1000),
+        parseInt(y/canvas.clientHeight*1000)
+      ];
       canvas .. @events('mousedown') .. @each{
         |event|
         //start a new stroke
