@@ -28,7 +28,6 @@ function BaseCanvas(segmentStream){
       var context = element.getContext('2d');
       context.lineCap = "round";
       //for every stroke we keep track of the last segment, so we can append after the last
-      var strokes = {};
       var redraw = @Emitter();
       //draw the drawing from all segments
       canvas.setSegmentStream = function(stream){
@@ -36,6 +35,7 @@ function BaseCanvas(segmentStream){
         redraw.emit();
       }
       while (1){
+        var strokes = {};
         waitfor {
           context.clearRect(0, 0, element.width, element.height);
           segmentStream .. @each{

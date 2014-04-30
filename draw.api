@@ -162,7 +162,7 @@ function getDrawing(drawingId){
   
   log += "; for client \##{activeDrawings[drawingId].clientCount}";
   //print to server console 
-  console.info(log);
+  //console.info(log);
   return [
       drawingId, 
       {
