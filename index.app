@@ -4,7 +4,7 @@
   './canvas.sjs',
   './bootstrap.sjs',
   './colorpicker.sjs',
-  './router.sjs',
+  {name:'bf', id:'./backfill.sjs'},
 ]);
 
 @mainContent .. @appendContent(
@@ -106,7 +106,7 @@
     }
   }
 
-  @Router([
+  @bf.Router([
     /gallery/, showGallery, //acts as a default as wel
     /drawing\/([\w-]+)/, showDrawing,
   ]);

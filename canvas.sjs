@@ -1,4 +1,9 @@
-@ = require(['mho:std', 'mho:app', './util/shadow']);
+@ = require([
+  'mho:std', 
+  'mho:app', 
+  './util/shadow',
+  {name:'bf', id:'./backfill.sjs'},
+]);
 
 function getPos(event, elem){
     if (!elem) elem = event.toElement;
@@ -10,42 +15,54 @@ function BaseCanvas(segmentStream){
     .. @Style('{width: 100%;}')
     .. @Shadow()
     .. @Mechanism(){
-      |canvas|
+      |element|
       //TODO: use css for this
       document .. @events('resize') .. @each{
-        |canvas|
-        console.log('resize');
-        canvas.css.height = canvas.clientWidth + 'px';
+        |element|
+        elememt.css.height = element.clientWidth + 'px';
       }
     }
     .. @Mechanism(){
-      |canvas|
+      |element|
       // setup drawing context
-      var context = canvas.getContext('2d');
+      var context = element.getContext('2d');
       context.lineCap = "round";
       //for every stroke we keep track of the last segment, so we can append after the last
       var strokes = {};
+      var redraw = @Emitter();
       //draw the drawing from all segments
-      segmentStream .. @each{
-        |segment|
-        if (!segment) continue; //the first element of localSegments is not a segment...
-        var precSeg = strokes[segment.sid];
-        if (precSeg !== undefined){
-          //there is a preceding element to this stroke
-          if (!segment.color)
-            segment.color = (precSeg && precSeg.color) ? precSeg.color : 'grey';
-          if (!segment.thickness) 
-            segment.thickness = (precSeg && precSeg.thickness) ? precSeg.thickness : 3;
-          context.beginPath();
-          context.strokeStyle = segment.color;
-          context.lineWidth = segment.thickness;
-          context.moveTo.apply(context, precSeg.coord); 
-          context.lineTo.apply(context, segment.coord);
-          context.stroke();
+      canvas.setSegmentStream = function(stream){
+        segmentStream = stream;
+        redraw.emit();
+      }
+      while (1){
+        waitfor {
+          context.clearRect(0, 0, element.width, element.height);
+          segmentStream .. @each{
+              |segment|
+              if (!segment) continue; //the first element of localSegments is not a segment...
+              var precSeg = strokes[segment.sid];
+              if (precSeg !== undefined){
+                //there is a preceding element to this stroke
+                if (!segment.color)
+                  segment.color = (precSeg && precSeg.color) ? precSeg.color : 'grey';
+                if (!segment.thickness) 
+                  segment.thickness = (precSeg && precSeg.thickness) ? precSeg.thickness : 3;
+                context.beginPath();
+                context.strokeStyle = segment.color;
+                context.lineWidth = segment.thickness;
+                context.moveTo.apply(context, precSeg.coord); 
+                context.lineTo.apply(context, segment.coord);
+                context.stroke();
+              }
+            strokes[segment.sid] = segment;
+          }
+        } or {
+          redraw .. @wait();
         }
-        strokes[segment.sid] = segment;
       }
     }
+
   return canvas;
 }
 
@@ -110,6 +127,15 @@ function DrawingCanvas(drawing){
 exports.DrawingCanvas = DrawingCanvas;
 
 function GalleryCanvas(drawing){
-  return BaseCanvas(drawing.segments .. @unpack);
+  var segmentStream = drawing.segments .. @unpack .. @bf.MemoizedStream;
+  var canvas = BaseCanvas(segmentStream);
+  return canvas .. @Mechanism{
+      |element|
+      element .. @events('mouseenter') .. @each{||
+        canvas.setSegmentStream(segmentStream .. @bf.throttle(1));
+        element .. @events('mouseleave') .. @wait();
+        canvas.setSegmentStream(segmentStream); 
+      }
+    }
 }
 exports.GalleryCanvas = GalleryCanvas;

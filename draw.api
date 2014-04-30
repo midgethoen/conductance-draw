@@ -2,7 +2,7 @@
   'mho:std',
   'sjs:object',
   {name:'lru', id:'sjs:lru-cache'},
-  {name: 'storage', id:'./StorageBackfill.sjs'},
+  {name: 'bf', id:'./backfill.sjs'},
   {name:'ids', id:'./ids.sjs'},
 ]);
 
@@ -34,7 +34,7 @@ function ActiveSchema(){
 var
   activeDrawings = {},
   drawingCache = @lru.makeCache(),
-  db = @storage.Storage('./drawingDB');
+  db = @bf.Storage('./drawingDB');
 
 function loadDrawing(drawingId){
   var drawing = undefined;
