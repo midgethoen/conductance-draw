@@ -14,7 +14,6 @@ if (__oni_rt.hostenv == 'nodejs'){
         try {
           found(storage.get(key));
         } catch(e){
-          console.log("error gettting stuff", e)
         }
       }
     })
@@ -44,7 +43,6 @@ if (__oni_rt.hostenv == 'nodejs'){
     var [route, args] = determineRoute();
     while (1){
       waitfor {
-        console.log('route');
         var result = route.apply(undefined, args);
         if (result !== undefined){
           return result; //allow routes to stop the router 
@@ -55,15 +53,30 @@ if (__oni_rt.hostenv == 'nodejs'){
         do {
           window .. @events('hashchange') .. @wait();
           [newRoute, args] = determineRoute(); 
-          if (route === newRoute){
-            console.log('dont route \'cause the dest are the same');
-          }
         } while (route === newRoute);
         route = newRoute;
       }
     }
   }
   exports.Router = Router;
+
+  function Shadow(element /*, selector, x, y, rad, color*/){
+    args = Array.prototype.slice.call(arguments,1);;
+    var selector = isNaN(parseInt(args[0])) ? "" : args.splice(0,1);
+    var [x,y,rad,color] = args;
+    if (x === undefined) x = 3;
+    if (y === undefined) y = 3;
+    if (rad === undefined) rad = 6;
+    if (color === undefined) color = 'rgba(1,1,1,.6)';
+
+    return element .. @Style("#{selector} {
+      -moz-box-shadow: #{x}px #{y}px #{rad}px #{color};
+   -webkit-box-shadow: #{x}px #{y}px #{rad}px #{color};
+           box-shadow: #{x}px #{y}px #{rad}px #{color};
+
+    }");
+  };
+  exports.Shadow = Shadow;
 }
 
 var { each, map, makeIterator, Stream } = require('sjs:sequence');

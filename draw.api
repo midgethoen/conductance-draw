@@ -12,7 +12,9 @@
 function Schema(){
   return {
     id: null,
+    created: new Date().getTime(),
     strokeCount: 0,
+    clientCount: 0,
     segments: [/*
       {coord:[12, 23], sid:3},
       {x:12, y:23, sid:3, color: black, thickness:15},
@@ -23,7 +25,6 @@ function Schema(){
 function ActiveSchema(){
   return {
     newSegmentEmitter:@Emitter(),
-    clientCount: 0,
     clients: [/*
       {id: 1},
       {id: 3},
@@ -31,10 +32,28 @@ function ActiveSchema(){
   };
 }
 
+
+
 var
   activeDrawings = {},
-  drawingCache = @lru.makeCache(),
-  db = @bf.Storage('./drawingDB');
+  drawingCache,
+  db = @bf.Storage('./drawingDB'),
+  index;
+
+function init(){
+  drawingCache = @lru.makeCache(100);
+  var drawings = 
+    db.query('drawing/', 'drawing/\xFF')
+     //parse the raw data
+     .. @transform([keyData, drawingData]->[
+          keyData.toString().replace(/^drawing\//, ''),
+          JSON.parse(drawingData.toString()),
+        ])
+     //sort according to creation date
+     .. @sort((d1,d2)->d2.created - d1.created)
+     .. @toArray;
+  index = drawings .. @map(x->x[0]) .. @ObservableVar;
+}
 
 function loadDrawing(drawingId){
   var drawing = undefined;
@@ -42,6 +61,7 @@ function loadDrawing(drawingId){
   if ( (drawing=drawingCache.get(drawingId)) !== null ){
     return drawing;
   }
+
   //get it from the db and cache it
   db.get('drawing/'+drawingId){
     |drawingData|
@@ -89,24 +109,25 @@ function segmentStream(drawing, clientId){
         if (once) hold();
         else once = true;
       }
-      var segments = 
-        drawing.segments.slice(idx)
+      var segments = drawing.segments.slice(idx)
         .. @filter(s->s.clientId !== clientId)
+        .. @transform(function(s){s = @clone(s); delete s.clientId; return s})
         .. @toArray;
+      idx = drawing.segments.length;
       if (segments.length || sendEmpty){
         try {
+          console.log("SEND #{segments.length}/#{drawing.segments.length}");
           reciever(segments);
         } catch (e){
           //can't call the function on the client
-          "ureka catched" .. console.log;
+          //"ureka catched" .. console.log;
           unregisterClient();
         } retract {
           //client has disconnected
-          "ureka retracted" .. console.log;
+          //"ureka retracted" .. console.log;
           unregisterClient();
         }
       }
-      idx = drawing.segments.length;
     }
   });
 }
@@ -122,7 +143,6 @@ function submitSegmentFunc(drawing, clientId){
     }
     drawing.segments.push(segment .. @merge({clientId:clientId}));
     drawing.newSegmentEmitter.emit();
-    drawing.lastEdited = new Date()
     putDrawing(drawing.id, drawing);
     return segment.sid;
   }
@@ -148,7 +168,8 @@ function getDrawing(drawingId){
     drawing = activeDrawings[drawingId] = Schema() .. @merge(ActiveSchema())
 
     drawing.id = drawingId;
-    putDrawing(drawingId, drawing)
+    putDrawing(drawingId, drawing);
+    index.modify(x->[drawingId].concat(drawingId));
   } else if (!loadDrawing(drawingId)){
     throw 'Unknown drawing id';
   } else {
@@ -181,12 +202,8 @@ function getDrawing(drawingId){
 exports.getDrawing = getDrawing;
 
 function getGallery(){
-  return @Stream(function(reciever){
-    db.query('drawing/', 'drawing/\xFF') .. @each(){
-      |[binKey, binDraw]|
-      var key = binKey.toString().replace(/^drawing\//, '');
-      reciever(getDrawing(key));
-    }
-  })
+  return index .. @transform(x->x);
 }
 exports.getGallery = getGallery;
+
+init();

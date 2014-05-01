@@ -1,7 +1,6 @@
 @ = require([
   'mho:std', 
   'mho:app', 
-  './util/shadow',
   {name:'bf', id:'./backfill.sjs'},
 ]);
 
@@ -13,7 +12,6 @@ function getPos(event, elem){
 function BaseCanvas(segmentStream){
   var canvas = @Canvas('',{width:1000, height:1000})
     .. @Style('{width: 100%;}')
-    .. @Shadow()
     .. @Mechanism(){
       |element|
       //TODO: use css for this
@@ -27,6 +25,7 @@ function BaseCanvas(segmentStream){
       // setup drawing context
       var context = element.getContext('2d');
       context.lineCap = "round";
+      context.fillStyle = "#fdf6e3";
       //for every stroke we keep track of the last segment, so we can append after the last
       var redraw = @Emitter();
       //draw the drawing from all segments
@@ -38,6 +37,7 @@ function BaseCanvas(segmentStream){
         var strokes = {};
         waitfor {
           context.clearRect(0, 0, element.width, element.height);
+          context.fillRect(0, 0, element.width, element.height);
           segmentStream .. @each{
               |segment|
               if (!segment) continue; //the first element of localSegments is not a segment...
@@ -72,13 +72,7 @@ function DrawingCanvas(drawing){
     color = @ObservableVar('black'),
     thickness = @ObservableVar(10);
   //segment stream
-  var 
-    localSegments = @ObservableVar(),
-    segmentStream = @combine(
-      drawing.segments .. @unpack,
-      localSegments
-    );
-  var canvas = BaseCanvas(segmentStream)
+  var canvas = BaseCanvas(drawing.segments)
     .. @Style('{
         cursor:crosshair;
        }')
@@ -98,7 +92,7 @@ function DrawingCanvas(drawing){
         };
         var strokeId = drawing.submitSegment(segment);
         segment.sid = strokeId;
-        localSegments.set(segment);
+        drawing.localSegments.set(segment);
         waitfor {
           canvas.. @events('mousemove') .. @each(){
             |event|
@@ -107,7 +101,7 @@ function DrawingCanvas(drawing){
               sid: strokeId,
             };
             spawn drawing.submitSegment(segment);
-            localSegments.set(segment);
+            drawing.localSegments.set(segment);
           }
         } or {
           var event = canvas .. @events(['mouseup', 'mouseleave']) .. @wait;
@@ -116,7 +110,7 @@ function DrawingCanvas(drawing){
             sid: strokeId,
           };
           spawn drawing.submitSegment(segment);
-          localSegments.set(segment);
+          drawing.localSegments.set(segment);
         }
       }
     }
@@ -127,14 +121,13 @@ function DrawingCanvas(drawing){
 exports.DrawingCanvas = DrawingCanvas;
 
 function GalleryCanvas(drawing){
-  var segmentStream = drawing.segments .. @unpack .. @bf.MemoizedStream;
-  var canvas = BaseCanvas(segmentStream);
+  var canvas = BaseCanvas(drawing.segments);
   return canvas .. @Mechanism{
       |element|
       element .. @events('mouseenter') .. @each{||
-        canvas.setSegmentStream(segmentStream .. @bf.throttle(1));
+        canvas.setSegmentStream(drawing.segments .. @bf.throttle(1));
         element .. @events('mouseleave') .. @wait();
-        canvas.setSegmentStream(segmentStream); 
+        canvas.setSegmentStream(drawing.segments); 
       }
     }
 }

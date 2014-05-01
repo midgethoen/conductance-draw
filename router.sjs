@@ -25,7 +25,6 @@ function Router(routes){
 
   while (1){
     waitfor {
-      console.log('route');
       var result = route.apply(undefined, args);
       if (result !== undefined){
         return result; //allow routes to stop the router 
@@ -36,9 +35,6 @@ function Router(routes){
       do {
         window .. @events('hashchange') .. @wait();
         [newRoute, args] = determineRoute(); 
-        if (route === newRoute){
-          console.log('dont route \'cause the dest are the same');
-        }
       } while (route === newRoute);
       route = newRoute;
     }

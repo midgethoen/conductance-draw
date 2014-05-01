@@ -7,46 +7,79 @@
   {name:'bf', id:'./backfill.sjs'},
 ]);
 
+document.body.style.backgroundColor = '#404045';
+
 @withAPI('./draw.api'){
   |api|
 
+  var drawings = {};
+  function getDrawing(drawingId){
+    if (!drawings[drawingId]){
+      var [drawingId,drawing] = api.getDrawing(drawingId);
+      //wrap the segments stream so it is locally cached and reusable
+      //also add an entrypoint for local segments
+      drawing.localSegments = @ObservableVar();
+      drawing.segments = drawing.segments
+        .. @transform(function(segments){console.log("RECEIVE #{segments.length}"); return segments;})
+        .. @unpack 
+        .. @combine(drawing.localSegments) 
+        .. @bf.MemoizedStream;
+      drawings[drawingId] = drawing;
+      console.log("getting drawing #{drawingId} from server");
+    } else {
+      console.log("getting drawing #{drawingId} from cache");
+    }
+    return [drawingId, drawings[drawingId]];
+  }
+
   createDrawing = function (){
-    console.log("asdasdfasdf");
-    var [drawingId,d] = api.getDrawing();
+    var [drawingId,d] = getDrawing();
     console.log(api);
     window.location.hash = '#drawing/'+drawingId;
   }
 
   @mainContent .. @appendContent(
     @BSNav('℧ draw', [
-      @A('Gallery',{href:'/'}),
+      @A('Gallery',{href:'#'}),
       @A('New drawing')
        .. @Mechanism{|e| e.onclick = createDrawing}])
   ){||
 
     function showGallery(){
-      var 
-        drawings = @ObservableVar(''),
-        gallery = @Div(null,{'class':'row'})
+      var gallery = @Div(null,{'class':'row'})
+        .. @Style('a {
+          width: 100%;
+          height: 0;
+          padding-bottom: 100%;
+          display: block;
+          background-color: #fdf6e3;
+          margin: 10px 0;
+          }') .. @bf.Shadow('a');
       @mainContent .. @appendContent([gallery]){
-        |gallery|
-        api.getGallery() .. @each.par(){
-          |[id, drawing]|
-          //drawings.modify(function(ds){
-            //return [
-          //  ].concat(ds)
-          //});
-          gallery .. @appendContent(
-          @Div(
-            @A(
-                @GalleryCanvas(drawing),
-                {href: "\#drawing/#{drawing.id}"}
-              ), 
-              {'class':'col-sm-2'}
+          |gallery|
+          api.getGallery() .. @each{
+            |ids|
+          ids .. @each(){
+            |id|
+            gallery .. @appendContent(
+              @Div(
+                @A(
+                    @P('Loading...'),
+                    {href: "\#drawing/#{id}", id:id}
+                  ), 
+                  {'class':'col-sm-2'}
+                )
+              )
+          }
+          ids .. @each.par(){
+            |id|
+            var [id, drawing] = getDrawing(id);
+            gallery.querySelector("\##{id}") .. @replaceContent(
+                  @GalleryCanvas(drawing)
             )
-          )
+          }
+          hold();
         }
-        hold();
       }
 
     }
@@ -54,10 +87,10 @@
     function showDrawing(route, drawingId){
       var drawing;
       try {
-        [drawingId, drawing]  = api.getDrawing(drawingId);
+        [drawingId, drawing]  = getDrawing(drawingId);
       } catch (e){
         console.log(e); //drawing does not exist or something like that
-        [drawingId, drawing] = api.getDrawing();
+        [drawingId, drawing] = getDrawing();
       }
       window.location.hash = '#drawing/'+drawingId;
       console.log(drawing);
